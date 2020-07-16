@@ -57,6 +57,12 @@
 #include <stan/math/prim/functor/mpi_distributed_apply.hpp>
 #endif
 
+#include <stan/analyze/mcmc/model_profiling.hpp>
+
+namespace prof {
+  GlobalProfiler global_profiler;
+}
+
 // forward declaration for function defined in another translation unit
 stan::model::model_base &new_model(stan::io::var_context &data_context,
                                    unsigned int seed, std::ostream *msg_stream);
@@ -355,6 +361,8 @@ int command(int argc, const char *argv[]) {
           init_writer, sample_writer);
     }
   } else if (parser.arg("method")->arg("sample")) {
+    prof::global_profiler.start_measure();
+
     int num_warmup = dynamic_cast<int_argument *>(
                          parser.arg("method")->arg("sample")->arg("num_warmup"))
                          ->value();
@@ -781,6 +789,29 @@ int command(int argc, const char *argv[]) {
             logger, init_writer, sample_writer, diagnostic_writer);
       }
     }
+
+    int64_t likelihood_total;
+    int64_t likelihoodgradient_total;
+    double  likelihood_avg;
+    double  likelihoodgradient_avg;
+    int64_t num_like_eval;
+    int64_t num_gradlike_eval;
+    int64_t sampling_total;
+    prof::global_profiler.dump_result(&likelihood_total,
+				      &likelihoodgradient_total,
+				      &likelihood_avg,
+				      &likelihoodgradient_avg,
+				      &num_like_eval,
+				      &num_gradlike_eval,
+				      &sampling_total);
+    std::cout << likelihood_total         << '\n'
+	      << likelihoodgradient_total << '\n'
+	      << likelihood_avg           << '\n'
+	      << likelihoodgradient_avg   << '\n'
+	      << num_like_eval            << '\n'
+	      << num_gradlike_eval        << '\n'
+	      << sampling_total           << std::endl; 
+
   } else if (parser.arg("method")->arg("variational")) {
     list_argument *algo = dynamic_cast<list_argument *>(
         parser.arg("method")->arg("variational")->arg("algorithm"));
